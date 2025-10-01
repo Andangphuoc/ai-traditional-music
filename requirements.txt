@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+transformers
+google-generativeai
+torch
+python-dotenv
+torchaudio
+scipy
+pydub
