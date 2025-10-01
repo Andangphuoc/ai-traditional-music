@@ -9,13 +9,21 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 SAMPLE_DIR = "samples"
 INSTRUMENT_SAMPLES = {
-    "sáo trúc": "sao_truc_demo.wav",
-    "đàn tranh": "dan_tranh_demo.wav",
-    "đàn bầu": "dan_bau_demo.wav",
-    "trống cơm": "trong_com_demo.wav",
-    "đàn nguyệt": "dan_nguyet_demo.wav",
+    "sáo": "sao.mp3",
+    "đàn tranh": "dan_tranh.mp3",
+    "đàn bầu": "dan_bau.mp3",
+    "đàn nguyệt": "dan_nguyet.mp3",
+    "đàn nhi": "dan_nhi.mp3",
+    "đàn đá": "dan_da.mp3",
+    "đàn day": "dan_day.mp3",
+    "đàn sen": "dan_sen.mp3",
+    "đàn tỳ bà": "dan_ty_ba.mp3",
+    "danh tranh": "danh_tranh1.mp3",
+    "kèn bé": "khen_be.mp3",
+    "t'rưng": "t_rung.mp3",
 }
 
 # Khởi tạo AI Generator
