@@ -1,0 +1,29 @@
+http://136.115.28.213/story/
+
+{
+  "query": "sáo trúc",
+  "history": []
+}
+
+guide
+
+{
+  "query": "Cách chơi sáo",
+  "history": []
+}
+
+
+demo/
+
+{
+  "product": "dan_bau",
+  "use_ai": true,
+  "style": "Vietnamese chamber music",
+  "duration": 5
+}
+
+consultation
+{
+  "query": "Tôi muốn tìm khóa học giá rẻ",
+  "history": []
+}
