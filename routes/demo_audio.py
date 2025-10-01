@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-
 SAMPLE_DIR = "samples"
 INSTRUMENT_SAMPLES = {
     "sáo": "sao.mp3",
@@ -26,12 +25,43 @@ INSTRUMENT_SAMPLES = {
     "t'rưng": "t_rung.mp3",
 }
 
-# Khởi tạo AI Generator
+# Khởi tạo AI Generator với auto-detect device
 try:
-    ai_generator = AIMusicGenerator()
+    logger.info("🚀 Initializing AI Music Generator...")
+    ai_generator = AIMusicGenerator()  # Tự động detect device tốt nhất
+    
+    # In ra thông tin device
+    device_info = ai_generator.get_device_info()
+    logger.info(f"📊 Device Info: {device_info}")
+    
 except Exception as e:
     logger.error(f"❌ Lỗi khởi tạo AIMusicGenerator: {str(e)}")
     ai_generator = None
+
+
+@router.get("/device-info")
+async def get_device_info():
+    """
+    API để check xem đang dùng GPU hay CPU
+    """
+    if ai_generator is None:
+        raise HTTPException(status_code=500, detail="AI Generator chưa được khởi tạo")
+    
+    info = ai_generator.get_device_info()
+    
+    # Thêm thông tin về tốc độ ước tính
+    if info["device"] == "cuda":
+        info["estimated_speed"] = "8-10x faster than CPU"
+        info["estimated_time_10s"] = "~6-8 seconds"
+    elif info["device"] == "mps":
+        info["estimated_speed"] = "3-5x faster than CPU"
+        info["estimated_time_10s"] = "~15-20 seconds"
+    else:
+        info["estimated_speed"] = "baseline (CPU)"
+        info["estimated_time_10s"] = "~60 seconds"
+    
+    return info
+
 
 @router.post("/")
 async def demo_audio(request: ProductDemoRequest):
@@ -42,6 +72,7 @@ async def demo_audio(request: ProductDemoRequest):
     """
     instrument = request.product.lower()
 
+    # Kiểm tra sample file trước
     if not request.use_ai and instrument in INSTRUMENT_SAMPLES:
         file_path = os.path.join(SAMPLE_DIR, INSTRUMENT_SAMPLES[instrument])
         if os.path.exists(file_path):
@@ -54,16 +85,21 @@ async def demo_audio(request: ProductDemoRequest):
         else:
             logger.warning(f"⚠️ Không tìm thấy file mẫu cho {instrument}, chuyển sang AI")
 
+    # Sử dụng AI Generator
     if ai_generator is None:
         raise HTTPException(status_code=500, detail="Trình tạo âm thanh AI chưa được khởi tạo")
 
     try:
+        logger.info(f"🎵 Đang tạo âm thanh AI cho {instrument} trên {ai_generator.device}...")
+        
         audio_io = ai_generator.generate(
             instrument=instrument,
             style=request.style,
             duration=request.duration,
         )
-        logger.info(f"🎶 Tạo âm thanh AI cho {instrument}")
+        
+        logger.info(f"✅ Đã tạo xong âm thanh AI cho {instrument}")
+        
         return StreamingResponse(
             audio_io,
             media_type="audio/wav",
@@ -72,3 +108,19 @@ async def demo_audio(request: ProductDemoRequest):
     except Exception as e:
         logger.error(f"❌ Lỗi tạo âm thanh AI: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Tạo âm thanh thất bại: {str(e)}")
+
+
+@router.post("/clear-cache")
+async def clear_cache():
+    """
+    API để xóa cache (nếu cần giải phóng dung lượng)
+    """
+    if ai_generator is None:
+        raise HTTPException(status_code=500, detail="AI Generator chưa được khởi tạo")
+    
+    try:
+        ai_generator.clear_cache()
+        return {"status": "success", "message": "Cache đã được xóa"}
+    except Exception as e:
+        logger.error(f"❌ Lỗi xóa cache: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Xóa cache thất bại: {str(e)}")
