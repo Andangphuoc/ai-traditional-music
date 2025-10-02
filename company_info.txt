@@ -1,0 +1,8 @@
+{
+  "company_name": "Nhạc Cụ Dân Tộc Việt Nam",
+  "description": "Cung cấp nhạc cụ chất lượng cao.",
+  "purchase_policy": "Thanh toán COD, giao hàng 3-5 ngày.",
+  "return_policy": "Đổi trả trong 7 ngày nếu lỗi.",
+  "contact": "Email: info@nhaccu.com | SĐT: 0987654321",
+  "chatbot_name": "Nhạc Sư Pro123"
+}

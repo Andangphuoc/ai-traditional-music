@@ -6,6 +6,7 @@ import google.generativeai as genai
 from functools import lru_cache
 import logging
 from typing import List, Dict, Optional
+import json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,6 +29,36 @@ async def gemini_generate_text(prompt: str) -> str:
     except Exception as e:
         logger.error(f"❌ Lỗi tạo văn bản Gemini: {str(e)}")
         return f"Lỗi tạo văn bản: {str(e)}"
+
+def read_company_info() -> Dict[str, str]:
+    """
+    Đọc nội dung từ file company_info.txt dưới dạng JSON
+    """
+    COMPANY_INFO_FILE = "company_info.txt"
+    default_info = {
+        "company_name": "Không xác định",
+        "description": "Không có thông tin",
+        "purchase_policy": "Không có thông tin",
+        "return_policy": "Không có thông tin",
+        "contact": "Không có thông tin",
+        "chatbot_name": "AI Assistant"
+    }
+    
+    if not os.path.exists(COMPANY_INFO_FILE):
+        logger.warning("❌ File company_info.txt không tồn tại")
+        return default_info
+    
+    try:
+        with open(COMPANY_INFO_FILE, "r", encoding="utf-8") as f:
+            content = json.load(f)
+        logger.info("✅ Đã đọc nội dung JSON từ company_info.txt")
+        return content
+    except json.JSONDecodeError:
+        logger.error("❌ File company_info.txt không chứa JSON hợp lệ")
+        return default_info
+    except Exception as e:
+        logger.error(f"❌ Lỗi đọc file company_info: {str(e)}")
+        return default_info
 
 def extract_user_context(history: List[Dict[str, str]]) -> Dict[str, Optional[str]]:
     """
@@ -129,6 +160,9 @@ async def process_chat_query(query: str, history: List[Dict[str, str]], intent: 
             ctx_parts.append(f"Độ tuổi: {user_context['age']}")
         context_str = " | ".join(ctx_parts)
     
+    # Đọc thông tin công ty từ file
+    company_info = read_company_info()
+    
     # Base instruction - QUAN TRỌNG: Bắt buộc trả lời ngắn gọn
     base_rules = """
 🎯 QUY TẮC BẮT BUỘC:
@@ -210,16 +244,26 @@ Ví dụ tốt:
 KHÔNG kể quá chi tiết lịch sử."""
 
     elif intent == "support":
+        # Kiểm tra câu hỏi "Bạn là ai?"
+        if any(k in query.lower() for k in ["bạn là ai", "who are you", "tên bạn"]):
+            return f"Tôi là {company_info['chatbot_name']}, trợ lý AI hỗ trợ bạn về nhạc cụ dân tộc Việt Nam. Hỏi tôi về sản phẩm hoặc chính sách nhé!"
+        
         prompt = f"""{base_rules}
 
 Câu hỏi: {query}
 Thông tin: {context_str if context_str else "Không có"}
+Thông tin công ty & chính sách:
+- Tên công ty: {company_info['company_name']}
+- Mô tả: {company_info['description']}
+- Chính sách mua hàng: {company_info['purchase_policy']}
+- Chính sách đổi trả: {company_info['return_policy']}
+- Liên hệ: {company_info['contact']}
 
 Vai trò: Nhân viên CSKH
 
 Trả lời 2-3 câu ngắn gọn, thân thiện:
 - Câu 1: Trả lời trực tiếp câu hỏi
-- Câu 2: Gợi ý/lời khuyên cụ thể
+- Câu 2: Gợi ý/lời khuyên cụ thể, dựa trên chính sách công ty
 
 Ví dụ tốt:
 "Bảo quản sáo khi trời ẩm: cất nơi khô ráo, dùng túi hút ẩm silica gel. Tránh để gần cửa sổ hoặc nơi có nước."
