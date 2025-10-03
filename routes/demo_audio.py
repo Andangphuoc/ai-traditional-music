@@ -4,6 +4,7 @@ from models import ProductDemoRequest
 from ai_music import AIMusicGenerator
 import os
 import logging
+import unicodedata
 
 logger = logging.getLogger(__name__)
 
@@ -11,19 +12,61 @@ router = APIRouter()
 
 SAMPLE_DIR = "samples"
 INSTRUMENT_SAMPLES = {
-    "sáo": "sao.mp3",
-    "đàn tranh": "dan_tranh.mp3",
-    "đàn bầu": "dan_bau.mp3",
-    "đàn nguyệt": "dan_nguyet.mp3",
-    "đàn nhi": "dan_nhi.mp3",
-    "đàn đá": "dan_da.mp3",
-    "đàn day": "dan_day.mp3",
-    "đàn sen": "dan_sen.mp3",
-    "đàn tỳ bà": "dan_ty_ba.mp3",
+    "sao": "sao.mp3",
+    "dan tranh": "dan_tranh.mp3",
+    "dan bau": "dan_bau.mp3",
+    "dan nguyet": "dan_nguyet.mp3",
+    "dan nhi": "dan_nhi.mp3",
+    "dan da": "dan_da.mp3",
+    "dan day": "dan_day.mp3",
+    "dan sen": "dan_sen.mp3",
+    "dan ty ba": "dan_ty_ba.mp3",
     "danh tranh": "danh_tranh1.mp3",
-    "kèn bé": "khen_be.mp3",
-    "t'rưng": "t_rung.mp3",
+    "ken be": "khen_be.mp3",
+    "t rung": "t_rung.mp3",
 }
+
+
+def normalize_text(text: str) -> str:
+    """
+    Chuẩn hóa text: bỏ dấu, chuyển thành chữ thường
+    Ví dụ: "Đàn Tranh" -> "dan tranh"
+    """
+    if not text:
+        return ""
+    
+    # Bỏ dấu tiếng Việt
+    text = unicodedata.normalize('NFD', text)
+    text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
+    
+    # Chuyển đ -> d, Đ -> d
+    text = text.replace('đ', 'd').replace('Đ', 'd')
+    
+    # Chuyển thành chữ thường và bỏ khoảng trắng thừa
+    text = text.lower().strip()
+    
+    # Chuẩn hóa nhiều khoảng trắng thành 1
+    text = ' '.join(text.split())
+    
+    return text
+
+
+def find_instrument_sample(instrument_name: str) -> str:
+    """
+    Tìm file sample cho nhạc cụ, hỗ trợ cả có dấu và không dấu
+    Trả về đường dẫn file nếu tìm thấy, None nếu không
+    """
+    normalized_input = normalize_text(instrument_name)
+    
+    # Tìm trong dictionary
+    for key, filename in INSTRUMENT_SAMPLES.items():
+        if normalize_text(key) == normalized_input:
+            file_path = os.path.join(SAMPLE_DIR, filename)
+            if os.path.exists(file_path):
+                return file_path
+    
+    return None
+
 
 # Khởi tạo AI Generator với auto-detect device
 try:
@@ -69,18 +112,19 @@ async def demo_audio(request: ProductDemoRequest):
     API trả về demo âm thanh nhạc cụ
     - Nếu use_ai = False và có sample thật thì trả về file sample
     - Nếu use_ai = True hoặc không có sample thì dùng AI generator
+    Hỗ trợ cả tên có dấu và không dấu (vd: "đàn tranh" hoặc "dan tranh")
     """
-    instrument = request.product.lower()
+    instrument = request.product
 
-    # Kiểm tra sample file trước
-    if not request.use_ai and instrument in INSTRUMENT_SAMPLES:
-        file_path = os.path.join(SAMPLE_DIR, INSTRUMENT_SAMPLES[instrument])
-        if os.path.exists(file_path):
+    # Kiểm tra sample file trước (nếu không dùng AI)
+    if not request.use_ai:
+        sample_path = find_instrument_sample(instrument)
+        if sample_path:
             logger.info(f"✅ Trả file mẫu cho {instrument}")
             return FileResponse(
-                file_path,
+                sample_path,
                 media_type="audio/wav",
-                headers={"Content-Disposition": f"attachment; filename={instrument}_demo.wav"},
+                headers={"Content-Disposition": f"attachment; filename={normalize_text(instrument)}_demo.wav"},
             )
         else:
             logger.warning(f"⚠️ Không tìm thấy file mẫu cho {instrument}, chuyển sang AI")
@@ -92,8 +136,11 @@ async def demo_audio(request: ProductDemoRequest):
     try:
         logger.info(f"🎵 Đang tạo âm thanh AI cho {instrument} trên {ai_generator.device}...")
         
+        # Chuẩn hóa tên nhạc cụ cho AI (bỏ dấu để mapping với instrument_map)
+        normalized_instrument = normalize_text(instrument)
+        
         audio_io = ai_generator.generate(
-            instrument=instrument,
+            instrument=normalized_instrument,
             style=request.style,
             duration=request.duration,
         )
@@ -103,7 +150,7 @@ async def demo_audio(request: ProductDemoRequest):
         return StreamingResponse(
             audio_io,
             media_type="audio/wav",
-            headers={"Content-Disposition": f"attachment; filename={instrument}_ai_demo.wav"},
+            headers={"Content-Disposition": f"attachment; filename={normalized_instrument}_ai_demo.wav"},
         )
     except Exception as e:
         logger.error(f"❌ Lỗi tạo âm thanh AI: {str(e)}")
