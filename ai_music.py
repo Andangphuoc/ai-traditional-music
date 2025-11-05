@@ -206,6 +206,21 @@ class AIMusicGenerator:
         Generate audio cho nhạc cụ
         instrument: có thể có dấu hoặc không dấu
         """
+        # Xử lý đặc biệt cho đàn bầu - trả về file mẫu 5s
+        normalized_instrument = normalize_text(instrument)
+        if normalized_instrument == "dan bau":
+            sample_path = os.path.join("samples", "dan_bau.mp3")
+            if os.path.exists(sample_path):
+                # Đọc file MP3 và cắt 5 giây
+                audio = AudioSegment.from_mp3(sample_path)
+                audio = audio[:5000]  # Cắt 5000ms = 5s
+                
+                audio_io = BytesIO()
+                audio.export(audio_io, format="wav")
+                audio_io.seek(0)
+                logger.info("🎵 Trả về file mẫu đàn bầu (5s)")
+                return audio_io
+
         # Kiểm tra cache trước
         if self.use_cache:
             cache_key = self._get_cache_key(instrument, style, duration)
